@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Parking Lot Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .menu {
+            margin-bottom: 20px;
+        }
+        .menu button {
+            display: block;
+            margin-bottom: 10px;
+        }
+        .hidden {
+            display: none;
+        }
+        .output {
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Parking Lot Management System</h1>
+    <div>
+        <label for="capacity">Enter the capacity of the parking lot:</label>
+        <input type="number" id="capacity" min="1">
+        <button onclick="initializeParkingLot()">Initialize Parking Lot</button>
+    </div>
+    <div class="menu hidden">
+        <h2>Menu</h2>
+        <button onclick="showParkVehicle()">1. Park vehicle</button>
+        <button onclick="showLeaveSpot()">2. Leave spot</button>
+        <button onclick="displayParkingStatus()">3. Display parking status</button>
+        <button onclick="displayEmptySpots()">4. View empty spots</button>
+        <button onclick="showAmountDetails()">5. Amount Details</button>
+        <button onclick="showGenerateBill()">6. Generate bill</button>
+        <button onclick="exit()">7. Exit</button>
+    </div>
+    <div class="actions hidden">
+        <div id="parkVehicle" class="hidden">
+            <h2>Park Vehicle</h2>
+            <label for="vehicleNumber">Enter vehicle number:</label>
+            <input type="text" id="vehicleNumber">
+            <label for="vehicleType">Enter vehicle type (Car/Bike/Truck/Bus):</label>
+            <input type="text" id="vehicleType">
+            <label for="ownerName">Enter owner name:</label>
+            <input type="text" id="ownerName">
+            <button onclick="parkVehicle()">Park</button>
+        </div>
+        <div id="leaveSpot" class="hidden">
+            <h2>Leave Spot</h2>
+            <label for="spotNumber">Enter spot number to leave:</label>
+            <input type="number" id="spotNumber">
+            <button onclick="leaveSpot()">Leave</button>
+        </div>
+        <div id="amountDetails" class="hidden">
+            <h2>Amount Details</h2>
+            <pre>
+*Car    Rs60/ Hour
+*Bike   Rs30/ Hour
+*Truck  Rs100/ Hour
+*Bus    Rs80/ Hour
+            </pre>
+        </div>
+        <div id="generateBill" class="hidden">
+            <h2>Generate Bill</h2>
+            <button onclick="displayParkedVehicles()">Display parked vehicles</button>
+            <label for="billVehicleNumber">Enter vehicle number for billing:</label>
+            <input type="text" id="billVehicleNumber">
+            <label for="parkedHours">Enter the number of hours the vehicle was parked:</label>
+            <input type="number" id="parkedHours" min="0.01" step="0.01">
+            <button onclick="generateBill()">Generate</button>
+        </div>
+    </div>
+    <div class="output" id="output"></div>
+    
+    <script>
+        let parkingLot = null;
+
+        function initializeParkingLot() {
+            const capacity = parseInt(document.getElementById('capacity').value);
+            parkingLot = new ParkingLot(capacity);
+            document.querySelector('.menu').classList.remove('hidden');
+            document.querySelector('.actions').classList.remove('hidden');
+        }
+
+        class ParkingLot {
+            constructor(capacity) {
+                this.capacity = capacity;
+                this.parkingSpots = Array(capacity).fill(null);
+                this.vehicleData = {};
+            }
+
+            findAvailableSpot() {
+                return this.parkingSpots.indexOf(null);
+            }
+
+            parkVehicle(vehicleNumber, vehicleType, ownerName) {
+                const spot = this.findAvailableSpot();
+                if (spot !== -1) {
+                    this.parkingSpots[spot] = vehicleNumber;
+                    this.vehicleData[vehicleNumber] = {
+                        vehicleType: vehicleType,
+                        ownerName: ownerName,
+                        checkInTime: Date.now()
+                    };
+                    return Vehicle ${vehicleNumber} parked at spot ${spot + 1}.;
+                } else {
+                    return "Parking lot is full. No available spots.";
+                }
+            }
+
+            leaveSpot(spotNumber) {
+                if (spotNumber >= 0 && spotNumber < this.capacity && this.parkingSpots[spotNumber] !== null) {
+                    const vehicleNumber = this.parkingSpots[spotNumber];
+                    this.parkingSpots[spotNumber] = null;
+                    const checkInTime = this.vehicleData[vehicleNumber].checkInTime;
+                    const parkedHours = (Date.now() - checkInTime) / 36000;
+                    const { parkingCharge, tax, totalAmount } = this.calculateBill(vehicleNumber, parkedHours);
+                    delete this.vehicleData[vehicleNumber];
+                    return Vehicle ${vehicleNumber} left spot ${spotNumber + 1}.\nParking Charge: Rs ${parkingCharge.toFixed(2)}\nTax (18%): Rs ${tax.toFixed(2)}\nTotal amount to be paid: Rs ${totalAmount.toFixed(2)};
+                } else {
+                    return "Invalid spot number or the spot is already empty.";
+                }
+            }
+
+            displayParkingStatus() {
+                let status = "";
+                this.parkingSpots.forEach((spot, index) => {
+                    status += Spot ${index + 1}: ${spot === null ? "Empty" : spot}\n;
+                });
+                return status;
+            }
+
+            displayEmptySpots() {
+                const emptySpots = this.parkingSpots.map((spot, index) => (spot === null ? index + 1 : null)).filter(spot => spot !== null);
+                return emptySpots.length > 0 ? Empty spots: ${emptySpots.join(", ")} : "No empty spots available.";
+            }
+
+            calculateBill(vehicleNumber, parkedHours) {
+                const vehicleType = this.vehicleData[vehicleNumber].vehicleType;
+                const ratePerHour = {
+                    "Car": 60,
+                    "Bike": 30,
+                    "Truck": 100,
+                    "Bus": 80
+                }[vehicleType] || 0;
+                const parkingCharge = ratePerHour * parkedHours;
+                const tax = parkingCharge * 0.18;
+                const totalAmount = parkingCharge + tax;
+                return { parkingCharge, tax, totalAmount };
+            }
+
+            generateBill(vehicleNumber, parkedHours) {
+                if (!this.vehicleData[vehicleNumber]) {
+                    return "Vehicle not found in the parking lot.";
+                }
+                const { parkingCharge, tax, totalAmount } = this.calculateBill(vehicleNumber, parkedHours);
+                const vehicleType = this.vehicleData[vehicleNumber].vehicleType;
+                const ownerName = this.vehicleData[vehicleNumber].ownerName;
+                const checkInTime = new Date(this.vehicleData[vehicleNumber].checkInTime).toLocaleString();
+                return .............................................................. Generating Bill ..........................................................................\nVehicle Check-in time - ${checkInTime}\nVehicle Type - ${vehicleType}\nOwner Name - ${ownerName}\nParking Charge - Rs ${parkingCharge.toFixed(2)}\nTax (18%) - Rs ${tax.toFixed(2)}\nTotal Charge - Rs ${totalAmount.toFixed(2)}\n...........................................................................................................................................\nDo you want to leave the spot? (Y/N);
+            }
+
+            displayParkedVehicles() {
+                if (Object.keys(this.vehicleData).length === 0) {
+                    return "No vehicles currently parked.";
+                } else {
+                    let parkedVehicles = "Currently parked vehicles and their check-in times:\n";
+                    for (const vehicleNumber in this.vehicleData) {
+                        const data = this.vehicleData[vehicleNumber];
+                        const checkInTime = new Date(data.checkInTime).toLocaleString();
+                        parkedVehicles += Vehicle Number: ${vehicleNumber}, Check-in Time: ${checkInTime}, Vehicle Type: ${data.vehicleType}\n;
+                    }
+                    return parkedVehicles;
+                }
+            }
+        }
+
+        function showParkVehicle() {
+            hideAllActions();
+            document.getElementById('parkVehicle').classList.remove('hidden');
+        }
+
+        function parkVehicle() {
+            const vehicleNumber = document.getElementById('vehicleNumber').value;
+            const vehicleType = document.getElementById('vehicleType').value;
+            const ownerName = document.getElementById('ownerName').value;
+            const result = parkingLot.parkVehicle(vehicleNumber, vehicleType, ownerName);
+            displayResult(result);
+        }
+
+        function showLeaveSpot() {
+            hideAllActions();
+            document.getElementById('leaveSpot').classList.remove('hidden');
+        }
+
+        function leaveSpot() {
+            const spotNumber = parseInt(document.getElementById('spotNumber').value) - 1;
+            const result = parkingLot.leaveSpot(spotNumber);
+            displayResult(result);
+        }
+
+        function displayParkingStatus() {
+            const result = parkingLot.displayParkingStatus();
+            displayResult(result);
+        }
+
+        function displayEmptySpots() {
+            const result = parkingLot.displayEmptySpots();
+            displayResult(result);
+        }
+
+        function showAmountDetails() {
+            hideAllActions();
+            document.getElementById('amountDetails').classList.remove('hidden');
+        }
+
+        function showGenerateBill() {
+            hideAllActions();
+            document.getElementById('generateBill').classList.remove('hidden');
+        }
+
+        function displayParkedVehicles() {
+            const result = parkingLot.displayParkedVehicles();
+            displayResult(result);
+        }
+
+        function generateBill() {
+            const vehicleNumber = document.getElementById('billVehicleNumber').value;
+            const parkedHours = parseFloat(document.getElementById('parkedHours').value);
+            const result = parkingLot.generateBill(vehicleNumber, parkedHours);
+            displayResult(result);
+            if (result.includes("Do you want to leave the spot? (Y/N)")) {
+                const leave = prompt("Do you want to leave the spot? (Y/N)").trim().toUpperCase();
+                if (leave === 'Y') {
+                    const spotNumber = parkingLot.parkingSpots.indexOf(vehicleNumber);
+                    const leaveResult = parkingLot.leaveSpot(spotNumber);
+                    displayResult(leaveResult);
+                }
+            }
+        }
+
+        function hideAllActions() {
+            document.querySelectorAll('.actions > div').forEach(div => div.classList.add('hidden'));
+        }
+
+        function displayResult(result) {
+            document.getElementById('output').textContent = result;
+        }
+
+        function exit() {
+            displayResult("Exiting...");
+        }
+    </script>
+</body>
+</html>
